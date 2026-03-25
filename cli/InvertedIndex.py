@@ -1,13 +1,17 @@
 import json
 import pickle
 import os
+import collections
+import math
 
 import utilities
 
 
 class InvertedIndex():
-    index: dict[str, list[int]] = {}
-    docmap: dict = {}
+    def __init__(self):
+        self.index: dict[str, list[int]] = {}
+        self.docmap: dict = {}
+        self.term_frequencies: dict[int, collections.Counter] = {}
     
     def __add_document(self, doc_id, text):
         tokens = utilities.tokenize_text(text)
@@ -16,6 +20,12 @@ class InvertedIndex():
                 self.index[token].append(doc_id)
             else:
                 self.index[token] = [doc_id]
+            
+         
+        if doc_id in self.term_frequencies:
+            self.term_frequencies[doc_id].update(tokens)
+        else:
+            self.term_frequencies[doc_id] = collections.Counter(tokens)
     
     def get_documents(self, term: str):
         result = []
@@ -29,6 +39,30 @@ class InvertedIndex():
             result.append(self.docmap[id])
             
         return result
+    
+    def get_tf(self, doc_id: int, term: str):
+        tokens = utilities.tokenize_text(term)
+        
+        if len(tokens) != 1:
+            raise ValueError("no more than one term")
+        
+        return self.term_frequencies[doc_id].get(tokens.pop())
+    
+    # inverted document freq
+    def get_idf(self, term: str):
+        tokens = utilities.tokenize_text(term)
+        
+        if len(tokens) != 1:
+            raise ValueError("no more than one term")
+        
+        token = tokens[0]
+        doc_count = len(self.docmap)
+        term_doc_count = len(self.index[token])
+        
+        idf = math.log((doc_count + 1) / (term_doc_count + 1))
+        return idf
+        
+        
     
     def build(self):
         with open("data/movies.json", "r") as file:
@@ -49,6 +83,9 @@ class InvertedIndex():
             
         with open("cache/docmap.pkl", "wb") as file:
             pickle.dump(self.docmap, file)
+            
+        with open("cache/term_frequencies.pkl", "wb") as file:
+            pickle.dump(self.term_frequencies, file)
 
     def load(self):
         cache_dir = os.path.isdir("cache")
@@ -67,5 +104,8 @@ class InvertedIndex():
             
         with open("cache/docmap.pkl", "rb") as file:
             self.docmap = pickle.load(file)
+            
+        with open("cache/term_frequencies.pkl", "rb") as file:
+            self.term_frequencies = pickle.load(file)
                     
     

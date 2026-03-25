@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 
 import utilities
 import InvertedIndex
@@ -39,23 +38,55 @@ def main() -> None:
     search_parser = subparsers.add_parser("search", help="Search movies using BM25")
     search_parser.add_argument("query", type=str, help="Search query")
     
-    subparsers.add_parser("build", help="build search query") 
+    tf_parser = subparsers.add_parser("tf", help="Build search query") 
+    tf_parser.add_argument("id", help="Document id")
+    tf_parser.add_argument("term", help="Term to search")
+    
+    idf_parser = subparsers.add_parser("idf", help="Get Inverse Document Frequency")
+    idf_parser.add_argument("term", help="Term to search")
+    
+    tfidf_parser = subparsers.add_parser("tfidf", help="get tfidf")
+    tfidf_parser.add_argument("id", help="Doc id")
+    tfidf_parser.add_argument("term", help="Term to search")
+    
+    subparsers.add_parser("build", help="build search query")
     
     args = parser.parse_args()
 
     match args.command:
         case "search":
             print(f"Searching for: {args.query}")
-            # format_print(
-            #     find_movies_matches(data,  utilities.tokenize_text(args.query))
-            # )
             query_tokens = utilities.tokenize_text(args.query)
             inverted_index.load()
             for token in query_tokens:
                 docs = inverted_index.get_documents(token)
                 format_print(docs)
                 
+        case "tf":
+            print(f"Getting TF for: {args.id}, {args.term}")
+            inverted_index.load()
+            result = inverted_index.get_tf(int(args.id), args.term)
+            print(result)
+            
+        case "idf":
+            print(f"Getting IDF for: {args.term}")
+            inverted_index.load()
+            result = inverted_index.get_idf(args.term)
+            print(result)
+            
+        case "tfidf":
+            inverted_index.load()
+            score = 0
+            
+            print(args.id, args.term)
+
+            idf = inverted_index.get_idf(args.term)
+            tf = inverted_index.get_tf(int(args.id), args.term)
+            score += tf * idf
+            print(f"TF-IDF score of '{args.term}' in document '{args.id}': {score:.2f}")
+                
         case "build":
+            print("Building...")
             inverted_index.build()
             inverted_index.save()
         case _:
