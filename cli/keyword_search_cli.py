@@ -49,6 +49,20 @@ def main() -> None:
     tfidf_parser.add_argument("id", help="Doc id")
     tfidf_parser.add_argument("term", help="Term to search")
     
+    bm25_idf_parser = subparsers.add_parser("bm25idf", help="Get BM25 IDF score for a given term")
+    bm25_idf_parser.add_argument("term", type=str, help="Term to get BM25 IDF score for")
+    
+    bm25_tf_parser = subparsers.add_parser(
+  "bm25tf", help="Get BM25 TF score for a given document ID and term"
+)
+    bm25_tf_parser.add_argument("doc_id", type=int, help="Document ID")
+    bm25_tf_parser.add_argument("term", type=str, help="Term to get BM25 TF score for")
+    bm25_tf_parser.add_argument("k1", type=float, nargs='?', default=utilities.BM25_K1, help="Tunable BM25 K1 parameter")
+    bm25_tf_parser.add_argument("b", type=float, nargs='?', default=utilities.BM25_B, help="Tunable BM25 b parameter")
+    
+    bm25search_parser = subparsers.add_parser("bm25search", help="Search movies using full BM25 scoring")
+    bm25search_parser.add_argument("query", type=str, help="Search query")
+    
     subparsers.add_parser("build", help="build search query")
     
     args = parser.parse_args()
@@ -72,23 +86,46 @@ def main() -> None:
             print(f"Getting IDF for: {args.term}")
             inverted_index.load()
             result = inverted_index.get_idf(args.term)
-            print(result)
+            print(f"Inverse document frequency of '{args.term}': {result:.2f}")
             
         case "tfidf":
             inverted_index.load()
             score = 0
-            
-            print(args.id, args.term)
 
             idf = inverted_index.get_idf(args.term)
             tf = inverted_index.get_tf(int(args.id), args.term)
             score += tf * idf
             print(f"TF-IDF score of '{args.term}' in document '{args.id}': {score:.2f}")
-                
+            
+        case "bm25idf":
+            inverted_index.load()
+            bm25idf = inverted_index.get_bm25_idf(args.term)
+            print(f"BM25 IDF score of '{args.term}': {bm25idf:.2f}")
+            
+        case "bm25tf":
+            inverted_index.load()
+            bm25tf = inverted_index.get_bm25_tf(args.doc_id, args.term, args.k1)
+            print(f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {bm25tf:.2f}")
+            
+        case "bm25search":
+            inverted_index.load()
+            res = inverted_index.bm25_search(args.query, 5)
+            print(res)
         case "build":
             print("Building...")
-            inverted_index.build()
-            inverted_index.save()
+            try:
+                inverted_index.build()
+                inverted_index.save()
+                print("build ok")
+                # print(f"Total tokens: {sum(inverted_index.doc_lengths.values())}")
+                # print(f"Avg doc length: {inverted_index._InvertedIndex__get_avg_doc_length()}")
+                # print(f"Doc 1 length: {inverted_index.doc_lengths[1]}")
+                # print(f"TF of 'anbuselvan' in doc 1: {inverted_index.get_tf(1, 'anbuselvan')}")
+                # print(f"Num docs: {len(inverted_index.doc_lengths)}")
+                # print(utilities.tokenize_text("The police are having a great time with her"))
+                # print(utilities.tokenize_text("a movie about a young boy and his dog"))
+            except:
+                print("build failed")
         case _:
             parser.print_help()
 
